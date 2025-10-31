@@ -48,6 +48,7 @@ export interface ShopFormData {
   name: string;
   address: string;
   phone: string;
+  email: string;
   category: string;
   description: string;
 }

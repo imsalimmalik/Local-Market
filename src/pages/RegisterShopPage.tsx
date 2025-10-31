@@ -8,6 +8,7 @@ const RegisterShopPage: React.FC = () => {
     name: '',
     address: '',
     phone: '',
+    email: '',
     category: '',
     description: ''
   });
@@ -19,10 +20,46 @@ const RegisterShopPage: React.FC = () => {
     description: ''
   });
 
-  const handleShopSubmit = (e: React.FormEvent) => {
+  // ✅ Updated function to send data to backend
+  const handleShopSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Shop registration:', shopData);
-    // In a real app, this would submit to backend
+
+    try {
+      const response = await fetch("http://localhost:5000/api/shops/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...shopData,
+          owner: "Salim", // You can replace with logged-in user later
+          products,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || "Failed to register shop");
+      }
+
+      const data = await response.json();
+      console.log("✅ Shop registered successfully:", data);
+      alert("Shop registered successfully!");
+
+      // Reset form after successful submission
+      setShopData({
+        name: '',
+        address: '',
+        phone: '',
+        email: '',
+        category: '',
+        description: ''
+      });
+      setProducts([]);
+    } catch (error: any) {
+      console.error("❌ Error registering shop:", error.message);
+      alert("Error registering shop. Please check the console for details.");
+    }
   };
 
   const handleAddProduct = () => {
@@ -46,7 +83,7 @@ const RegisterShopPage: React.FC = () => {
           <form onSubmit={handleShopSubmit} className="space-y-6">
             <div className="border-b border-gray-200 pb-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Shop Information</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -61,7 +98,7 @@ const RegisterShopPage: React.FC = () => {
                     placeholder="Enter your shop name"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Category *
@@ -93,10 +130,24 @@ const RegisterShopPage: React.FC = () => {
                     value={shopData.phone}
                     onChange={(e) => setShopData(prev => ({ ...prev, phone: e.target.value }))}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="+1 (555) 123-4567"
+                    placeholder="9876543210"
                   />
                 </div>
-                
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={shopData.email}
+                    onChange={(e) => setShopData(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="example@shop.com"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Address *
@@ -121,7 +172,7 @@ const RegisterShopPage: React.FC = () => {
                   value={shopData.description}
                   onChange={(e) => setShopData(prev => ({ ...prev, description: e.target.value }))}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Describe your shop and what makes it special..."
+                  placeholder="Describe your shop..."
                 />
               </div>
 
@@ -133,7 +184,7 @@ const RegisterShopPage: React.FC = () => {
                   <div className="space-y-1 text-center">
                     <Upload className="mx-auto h-12 w-12 text-gray-400" />
                     <div className="flex text-sm text-gray-600">
-                      <label className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                      <label className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
                         <span>Upload a file</span>
                         <input type="file" className="sr-only" accept="image/*" />
                       </label>
@@ -148,7 +199,7 @@ const RegisterShopPage: React.FC = () => {
             {/* Products Section */}
             <div className="border-b border-gray-200 pb-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Add Products</h2>
-              
+
               {/* Add Product Form */}
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -164,7 +215,7 @@ const RegisterShopPage: React.FC = () => {
                       placeholder="Product name"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Price ($)
@@ -179,7 +230,7 @@ const RegisterShopPage: React.FC = () => {
                       placeholder="0.00"
                     />
                   </div>
-                  
+
                   <div className="flex items-end">
                     <button
                       type="button"
@@ -191,7 +242,7 @@ const RegisterShopPage: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Description

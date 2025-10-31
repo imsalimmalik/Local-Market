@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Filter } from 'lucide-react';
 import SearchBar from '../components/Forms/SearchBar';
 import ShopCard from '../components/UI/ShopCard';
-import { mockShops, categories } from '../data/mockData';
+import { categories } from '../data/mockData';
 import { Shop } from '../types';
 
 const ShopsPage: React.FC = () => {
@@ -10,8 +10,41 @@ const ShopsPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [showVerifiedOnly, setShowVerifiedOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
 
-  const filteredShops = mockShops.filter((shop: Shop) => {
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const res = await fetch('http://localhost:5000/api/shops');
+        if (!res.ok) throw new Error('Failed to load shops');
+        const data = await res.json();
+        const mapped: Shop[] = (data || []).map((s: any) => ({
+          id: s._id || s.id,
+          name: s.name,
+          address: s.address,
+          phone: s.phone,
+          category: s.category || 'General',
+          rating: 4.5,
+          verified: false,
+          image: s.logoUrl ? `http://localhost:5000${s.logoUrl}` : 'https://via.placeholder.com/600x400?text=Shop',
+          description: s.description || '',
+          coordinates: { lat: 0, lng: 0 },
+        }));
+        setShops(mapped);
+      } catch (e: any) {
+        setError(e.message || 'Error loading shops');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const filteredShops = shops.filter((shop: Shop) => {
     const matchesSearch = shop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          shop.address.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'All Categories' || shop.category === selectedCategory;
@@ -90,7 +123,11 @@ const ShopsPage: React.FC = () => {
 
           {/* Shop Grid */}
           <div className="flex-1">
-            {filteredShops.length > 0 ? (
+            {loading ? (
+              <div className="text-center py-12 text-gray-500">Loading shops...</div>
+            ) : error ? (
+              <div className="text-center py-12 text-red-600">{error}</div>
+            ) : filteredShops.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredShops.map((shop) => (
                   <ShopCard key={shop.id} shop={shop} />
