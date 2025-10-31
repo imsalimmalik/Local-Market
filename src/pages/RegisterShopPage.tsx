@@ -14,6 +14,7 @@ const RegisterShopPage: React.FC = () => {
   });
 
   const [products, setProducts] = useState<ProductFormData[]>([]);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [newProduct, setNewProduct] = useState<ProductFormData>({
     name: '',
     price: 0,
@@ -25,16 +26,20 @@ const RegisterShopPage: React.FC = () => {
     e.preventDefault();
 
     try {
+      const formData = new FormData();
+      formData.append('name', shopData.name);
+      formData.append('owner', 'Salim');
+      formData.append('address', shopData.address);
+      formData.append('phone', shopData.phone);
+      formData.append('email', shopData.email);
+      formData.append('category', shopData.category);
+      formData.append('description', shopData.description);
+      formData.append('products', JSON.stringify(products));
+      if (logoFile) formData.append('logo', logoFile);
+
       const response = await fetch("http://localhost:5000/api/shops/register", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...shopData,
-          owner: "Salim", // You can replace with logged-in user later
-          products,
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -56,6 +61,7 @@ const RegisterShopPage: React.FC = () => {
         description: ''
       });
       setProducts([]);
+      setLogoFile(null);
     } catch (error: any) {
       console.error("❌ Error registering shop:", error.message);
       alert("Error registering shop. Please check the console for details.");
@@ -180,18 +186,32 @@ const RegisterShopPage: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Shop Logo/Image
                 </label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-blue-400 transition-colors duration-200">
-                  <div className="space-y-1 text-center">
-                    <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                    <div className="flex text-sm text-gray-600">
-                      <label className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
-                        <span>Upload a file</span>
-                        <input type="file" className="sr-only" accept="image/*" />
-                      </label>
-                      <p className="pl-1">or drag and drop</p>
-                    </div>
-                    <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                <div className="mt-1 px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                  <div className="flex items-center space-x-4">
+                    <Upload className="h-6 w-6 text-gray-400" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+                        setLogoFile(file);
+                      }}
+                      className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
                   </div>
+                  {logoFile && (
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="text-sm text-gray-600">Selected: {logoFile.name}</div>
+                      <button
+                        type="button"
+                        className="text-red-600 hover:text-red-800 text-sm"
+                        onClick={() => setLogoFile(null)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                  <p className="mt-2 text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
                 </div>
               </div>
             </div>

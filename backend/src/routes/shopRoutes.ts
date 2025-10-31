@@ -7,8 +7,8 @@ import { logger } from "../utils/logger";
 
 const router = express.Router();
 
-// configure multer storage
-const uploadsDir = path.join(process.cwd(), "project2", "backend", "uploads");
+// configure multer storage (backend/uploads)
+const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
