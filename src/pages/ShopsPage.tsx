@@ -30,7 +30,7 @@ const ShopsPage: React.FC = () => {
           category: s.category || 'General',
           rating: 4.5,
           verified: false,
-          image: s.logoUrl ? `http://localhost:5000${s.logoUrl}` : 'https://via.placeholder.com/600x400?text=Shop',
+          image: s.logoUrl ? `http://localhost:5000${s.logoUrl}` : 'https://placehold.co/600x400?text=Shop',
           description: s.description || '',
           coordinates: { lat: 0, lng: 0 },
         }));

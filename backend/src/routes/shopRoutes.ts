@@ -80,4 +80,18 @@ router.get("/", async (_req, res) => {
   }
 });
 
+// GET /api/shops/:id - get shop by id
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params as { id: string };
+    const shop = await Shop.findById(id);
+    if (!shop) {
+      return res.status(404).json({ message: "Shop not found" });
+    }
+    res.json(shop);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 export default router;

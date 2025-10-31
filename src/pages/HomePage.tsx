@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, MapPin, Shield, Star } from 'lucide-react';
 import SearchBar from '../components/Forms/SearchBar';
 import ShopCard from '../components/UI/ShopCard';
 import OfferCard from '../components/UI/OfferCard';
-import { mockShops, mockOffers } from '../data/mockData';
+import { mockOffers } from '../data/mockData';
+import type { Shop } from '../types';
 
 const HomePage: React.FC = () => {
   const handleSearch = (query: string) => {
@@ -12,7 +13,41 @@ const HomePage: React.FC = () => {
     // In a real app, this would filter shops/products
   };
 
-  const featuredShops = mockShops.slice(0, 3);
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const res = await fetch('http://localhost:5000/api/shops');
+        if (!res.ok) throw new Error('Failed to load shops');
+        const data = await res.json();
+        const mapped: Shop[] = (data || []).map((s: any) => ({
+          id: s._id || s.id,
+          name: s.name,
+          address: s.address,
+          phone: s.phone,
+          category: s.category || 'General',
+          rating: 4.5,
+          verified: false,
+          image: s.logoUrl ? `http://localhost:5000${s.logoUrl}` : 'https://placehold.co/600x400?text=Shop',
+          description: s.description || '',
+          coordinates: { lat: 0, lng: 0 },
+        }));
+        setShops(mapped);
+      } catch (e: any) {
+        setError(e.message || 'Error loading shops');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const featuredShops = shops.slice(0, 3);
   const hotOffers = mockOffers.slice(0, 3);
 
   return (
@@ -68,11 +103,17 @@ const HomePage: React.FC = () => {
             </Link>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredShops.map((shop) => (
-              <ShopCard key={shop.id} shop={shop} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="text-center py-12 text-gray-500">Loading shops...</div>
+          ) : error ? (
+            <div className="text-center py-12 text-red-600">{error}</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featuredShops.map((shop) => (
+                <ShopCard key={shop.id} shop={shop} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

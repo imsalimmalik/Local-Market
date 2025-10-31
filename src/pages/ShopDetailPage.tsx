@@ -1,19 +1,65 @@
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useParams } from 'react-router-dom';
 import { Phone, MapPin, Star, CheckCircle, Clock } from 'lucide-react';
 import ProductCard from '../components/UI/ProductCard';
 import ReviewCard from '../components/UI/ReviewCard';
-import { mockShops, mockProducts, mockReviews } from '../data/mockData';
+import { mockProducts, mockReviews } from '../data/mockData';
+import type { Shop } from '../types';
 
 const ShopDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation() as any;
   const [newReview, setNewReview] = useState({
     name: '',
     rating: 5,
     comment: ''
   });
+  const [shop, setShop] = useState<Shop | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
 
-  const shop = mockShops.find(s => s.id === id);
+  useEffect(() => {
+    // Prefer shop from router state if available
+    if (location?.state?.shop) {
+      setShop(location.state.shop as Shop);
+      setLoading(false);
+      return;
+    }
+
+    const load = async () => {
+      if (!id) return;
+      setLoading(true);
+      setError('');
+      try {
+        const res = await fetch(`http://localhost:5000/api/shops/${id}`);
+        if (res.status === 404) {
+          setShop(null);
+          return;
+        }
+        if (!res.ok) throw new Error('Failed to load shop');
+        const s = await res.json();
+        const mapped: Shop = {
+          id: s._id || s.id,
+          name: s.name,
+          address: s.address,
+          phone: s.phone,
+          category: s.category || 'General',
+          rating: 4.5,
+          verified: false,
+          image: s.logoUrl ? `http://localhost:5000${s.logoUrl}` : 'https://placehold.co/1200x600?text=Shop',
+          description: s.description || '',
+          coordinates: { lat: 0, lng: 0 },
+        };
+        setShop(mapped);
+      } catch (e: any) {
+        setError(e.message || 'Error loading shop');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [id, location]);
+
   const shopProducts = mockProducts.filter(p => p.shopId === id);
   const shopReviews = mockReviews.filter(r => r.shopId === id);
 
@@ -23,6 +69,22 @@ const ShopDetailPage: React.FC = () => {
     // In a real app, this would submit to backend
     setNewReview({ name: '', rating: 5, comment: '' });
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center text-gray-600">Loading shop...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center text-red-600">{error}</div>
+      </div>
+    );
+  }
 
   if (!shop) {
     return (
