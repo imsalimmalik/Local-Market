@@ -4,8 +4,7 @@ import { ArrowRight, MapPin, Shield, Star } from 'lucide-react';
 import SearchBar from '../components/Forms/SearchBar';
 import ShopCard from '../components/UI/ShopCard';
 import OfferCard from '../components/UI/OfferCard';
-import { mockOffers } from '../data/mockData';
-import type { Shop } from '../types';
+import type { Shop, Offer } from '../types';
 
 const HomePage: React.FC = () => {
   const handleSearch = (query: string) => {
@@ -14,11 +13,13 @@ const HomePage: React.FC = () => {
   };
 
   const [shops, setShops] = useState<Shop[]>([]);
+  const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [offersLoading, setOffersLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
-    const load = async () => {
+    const loadShops = async () => {
       setLoading(true);
       setError('');
       try {
@@ -31,7 +32,7 @@ const HomePage: React.FC = () => {
           address: s.address,
           phone: s.phone,
           category: s.category || 'General',
-          rating: 4.5,
+          rating: s.rating || 0,
           verified: false,
           image: s.logoUrl ? `http://localhost:5000${s.logoUrl}` : 'https://placehold.co/600x400?text=Shop',
           description: s.description || '',
@@ -44,11 +45,38 @@ const HomePage: React.FC = () => {
         setLoading(false);
       }
     };
-    load();
+
+    const loadOffers = async () => {
+      setOffersLoading(true);
+      try {
+        const res = await fetch('http://localhost:5000/api/offers');
+        if (!res.ok) throw new Error('Failed to load offers');
+        const data = await res.json();
+        const mapped: Offer[] = (data || []).map((o: any) => ({
+          id: o._id || o.id,
+          shopId: o.shopId || '',
+          title: o.title,
+          description: o.description,
+          startDate: o.startDate,
+          endDate: o.endDate,
+          discount: o.discount,
+          image: o.image || 'https://placehold.co/600x400?text=Offer',
+          shopName: o.shopName || 'Unknown Shop',
+        }));
+        setOffers(mapped);
+      } catch (e: any) {
+        console.error('Error loading offers:', e);
+      } finally {
+        setOffersLoading(false);
+      }
+    };
+
+    loadShops();
+    loadOffers();
   }, []);
 
   const featuredShops = shops.slice(0, 3);
-  const hotOffers = mockOffers.slice(0, 3);
+  const hotOffers = offers.slice(0, 3);
 
   return (
     <div className="min-h-screen">
@@ -134,11 +162,17 @@ const HomePage: React.FC = () => {
             </Link>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {hotOffers.map((offer) => (
-              <OfferCard key={offer.id} offer={offer} />
-            ))}
-          </div>
+          {offersLoading ? (
+            <div className="text-center py-12 text-gray-500">Loading offers...</div>
+          ) : hotOffers.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {hotOffers.map((offer) => (
+                <OfferCard key={offer.id} offer={offer} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">No offers available at the moment.</div>
+          )}
         </div>
       </section>
 

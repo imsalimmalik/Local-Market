@@ -15,6 +15,7 @@ export interface IShop extends Document {
   category?: string;
   description?: string;
   logoUrl?: string;
+  rating?: number;
   products: IProduct[];
   createdAt: Date;
 }
@@ -34,6 +35,7 @@ const ShopSchema: Schema = new Schema({
   category: { type: String },
   description: { type: String },
   logoUrl: { type: String },
+  rating: { type: Number, default: 0 },
   products: { type: [ProductSchema], default: [] },
   createdAt: { type: Date, default: Date.now },
 });

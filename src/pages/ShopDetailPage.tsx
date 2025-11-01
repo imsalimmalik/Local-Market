@@ -1,13 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
-import { Phone, MapPin, Star, CheckCircle, Clock } from 'lucide-react';
+import { Phone, MapPin, Star, CheckCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import ProductCard from '../components/UI/ProductCard';
 import ReviewCard from '../components/UI/ReviewCard';
-import { mockProducts, mockReviews } from '../data/mockData';
-import type { Shop } from '../types';
+import type { Shop, Product, Review } from '../types';
+
+// Helper function to get mobile-friendly Google Maps URL
+const getGoogleMapsUrl = (address: string): string => {
+  const encodedAddress = encodeURIComponent(address);
+  // This format works well on both mobile and desktop
+  // On mobile, it will prompt to open in the native app if available
+  return `https://maps.google.com/maps?daddr=${encodedAddress}`;
+};
+
+// Helper function to format phone number for tel: link
+// Removes spaces, dashes, and other formatting to ensure mobile compatibility
+const formatPhoneForCall = (phone: string): string => {
+  // Remove all non-digit characters except + for international numbers
+  return phone.replace(/[^\d+]/g, '');
+};
 
 const ShopDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const location = useLocation() as any;
   const [newReview, setNewReview] = useState({
     name: '',
@@ -15,23 +29,97 @@ const ShopDetailPage: React.FC = () => {
     comment: ''
   });
   const [shop, setShop] = useState<Shop | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [averageRating, setAverageRating] = useState<number>(0);
+  const [totalReviews, setTotalReviews] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
+  const [productsLoading, setProductsLoading] = useState<boolean>(false);
+  const [reviewsLoading, setReviewsLoading] = useState<boolean>(false);
+  const [submittingReview, setSubmittingReview] = useState<boolean>(false);
+  const [showAllReviews, setShowAllReviews] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+
+  const loadProducts = useCallback(async () => {
+    if (!slug) return;
+    setProductsLoading(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/shops/${slug}/products`);
+      if (res.ok) {
+        const data = await res.json();
+        const mapped: Product[] = (data || []).map((p: any) => ({
+          id: p._id || p.id,
+          shopId: p.shopId || '',
+          name: p.name,
+          price: p.price,
+          description: p.description || '',
+          ...(p.image && { image: p.image }), // Only include image if it exists
+        }));
+        setProducts(mapped);
+      }
+    } catch (e: any) {
+      console.error('Error loading products:', e);
+      // Don't show error to user, just log it
+    } finally {
+      setProductsLoading(false);
+    }
+  }, [slug]);
+
+  const loadReviews = useCallback(async () => {
+    if (!slug) return;
+    setReviewsLoading(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/shops/${slug}/reviews`);
+      if (res.ok) {
+        const data = await res.json();
+        const mapped: Review[] = (data.reviews || []).map((r: any) => ({
+          id: r._id || r.id,
+          shopId: r.shopId || '',
+          customerName: r.customerName,
+          rating: r.rating,
+          comment: r.comment,
+          date: new Date(r.createdAt).toLocaleDateString(),
+        }));
+        setReviews(mapped);
+        setAverageRating(data.averageRating || 0);
+        setTotalReviews(data.totalReviews || 0);
+        
+        // Update shop rating in state (but don't cause re-render loop)
+        setShop((prevShop) => {
+          if (prevShop) {
+            return {
+              ...prevShop,
+              rating: data.averageRating || 0,
+            };
+          }
+          return prevShop;
+        });
+      }
+    } catch (e: any) {
+      console.error('Error loading reviews:', e);
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [slug]);
 
   useEffect(() => {
     // Prefer shop from router state if available
     if (location?.state?.shop) {
-      setShop(location.state.shop as Shop);
+      const shopFromState = location.state.shop as Shop;
+      setShop(shopFromState);
       setLoading(false);
+      // Still load products and reviews even if shop is from state
+      loadProducts();
+      loadReviews();
       return;
     }
 
     const load = async () => {
-      if (!id) return;
+      if (!slug) return;
       setLoading(true);
       setError('');
       try {
-        const res = await fetch(`http://localhost:5000/api/shops/${id}`);
+        const res = await fetch(`http://localhost:5000/api/shops/${slug}`);
         if (res.status === 404) {
           setShop(null);
           return;
@@ -44,13 +132,17 @@ const ShopDetailPage: React.FC = () => {
           address: s.address,
           phone: s.phone,
           category: s.category || 'General',
-          rating: 4.5,
+          rating: s.rating || 0,
           verified: false,
           image: s.logoUrl ? `http://localhost:5000${s.logoUrl}` : 'https://placehold.co/1200x600?text=Shop',
           description: s.description || '',
           coordinates: { lat: 0, lng: 0 },
         };
         setShop(mapped);
+        
+        // Load products and reviews for this shop
+        loadProducts();
+        loadReviews();
       } catch (e: any) {
         setError(e.message || 'Error loading shop');
       } finally {
@@ -58,16 +150,49 @@ const ShopDetailPage: React.FC = () => {
       }
     };
     load();
-  }, [id, location]);
+  }, [slug, location, loadProducts, loadReviews]);
 
-  const shopProducts = mockProducts.filter(p => p.shopId === id);
-  const shopReviews = mockReviews.filter(r => r.shopId === id);
-
-  const handleReviewSubmit = (e: React.FormEvent) => {
+  const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('New review:', newReview);
-    // In a real app, this would submit to backend
-    setNewReview({ name: '', rating: 5, comment: '' });
+    if (!slug || !newReview.name.trim() || !newReview.comment.trim()) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    setSubmittingReview(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/shops/${slug}/reviews`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerName: newReview.name,
+          rating: newReview.rating,
+          comment: newReview.comment,
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to submit review');
+      }
+
+      const data = await res.json();
+      
+      // Reload reviews to get updated list and rating
+      await loadReviews();
+      
+      // Reset form
+      setNewReview({ name: '', rating: 5, comment: '' });
+      
+      alert(`Review submitted successfully! Shop rating: ${data.shopRating.toFixed(1)}`);
+    } catch (error: any) {
+      console.error('Error submitting review:', error);
+      alert(`Error submitting review: ${error.message}`);
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   if (loading) {
@@ -121,7 +246,10 @@ const ShopDetailPage: React.FC = () => {
             <div className="flex items-center space-x-4 text-lg">
               <div className="flex items-center space-x-1">
                 <Star className="h-5 w-5 fill-current text-yellow-400" />
-                <span>{shop.rating}</span>
+                <span>{shop.rating > 0 ? shop.rating.toFixed(1) : 'No ratings'}</span>
+                {totalReviews > 0 && (
+                  <span className="text-sm text-gray-300">({totalReviews} review{totalReviews !== 1 ? 's' : ''})</span>
+                )}
               </div>
               <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
                 {shop.category}
@@ -159,9 +287,11 @@ const ShopDetailPage: React.FC = () => {
             {/* Products */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Products</h2>
-              {shopProducts.length > 0 ? (
+              {productsLoading ? (
+                <p className="text-gray-500 text-center py-8">Loading products...</p>
+              ) : products.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {shopProducts.map((product) => (
+                  {products.map((product) => (
                     <ProductCard key={product.id} product={product} />
                   ))}
                 </div>
@@ -172,13 +302,70 @@ const ShopDetailPage: React.FC = () => {
 
             {/* Reviews */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Customer Reviews</h2>
-              
-              <div className="space-y-4 mb-8">
-                {shopReviews.map((review) => (
-                  <ReviewCard key={review.id} review={review} />
-                ))}
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Customer Reviews
+                  {totalReviews > 0 && (
+                    <span className="text-lg font-normal text-gray-600 ml-2">
+                      ({totalReviews})
+                    </span>
+                  )}
+                </h2>
+                {averageRating > 0 && (
+                  <div className="flex items-center space-x-2">
+                    <Star className="h-5 w-5 fill-current text-yellow-400" />
+                    <span className="text-lg font-semibold">{averageRating.toFixed(1)}</span>
+                  </div>
+                )}
               </div>
+              
+              {reviewsLoading ? (
+                <p className="text-gray-500 text-center py-8">Loading reviews...</p>
+              ) : reviews.length > 0 ? (
+                <>
+                  {!showAllReviews ? (
+                    <>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        {reviews.slice(0, 4).map((review) => (
+                          <ReviewCard key={review.id} review={review} />
+                        ))}
+                      </div>
+                      {reviews.length > 4 && (
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() => setShowAllReviews(true)}
+                            className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 transition-colors duration-200"
+                          >
+                            <span>View More ({reviews.length - 4})</span>
+                            <ChevronDown className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="max-h-[600px] overflow-y-auto pr-2 mb-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {reviews.map((review) => (
+                            <ReviewCard key={review.id} review={review} />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex justify-center">
+                        <button
+                          onClick={() => setShowAllReviews(false)}
+                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 transition-colors duration-200"
+                        >
+                          <ChevronUp className="h-3 w-3" />
+                          <span>View Less</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <p className="text-gray-500 text-center py-8 mb-8">No reviews yet. Be the first to review!</p>
+              )}
 
               {/* Add Review Form */}
               <form onSubmit={handleReviewSubmit} className="border-t pt-6">
@@ -231,9 +418,10 @@ const ShopDetailPage: React.FC = () => {
                 
                 <button
                   type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-medium transition-colors duration-200"
+                  disabled={submittingReview}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-md font-medium transition-colors duration-200"
                 >
-                  Submit Review
+                  {submittingReview ? 'Submitting...' : 'Submit Review'}
                 </button>
               </form>
             </div>
@@ -256,12 +444,20 @@ const ShopDetailPage: React.FC = () => {
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <button className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors duration-200">
+                <a
+                  href={`tel:${formatPhoneForCall(shop.phone)}`}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors duration-200 block text-center"
+                >
                   Call Shop
-                </button>
-                <button className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium transition-colors duration-200">
+                </a>
+                <a
+                  href={getGoogleMapsUrl(shop.address)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium transition-colors duration-200 block text-center"
+                >
                   Get Directions
-                </button>
+                </a>
                 <button className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md font-medium transition-colors duration-200">
                   Share Shop
                 </button>

@@ -25,19 +25,15 @@ const OfferCard: React.FC<OfferCardProps> = ({ offer }) => {
       </div>
       
       <div className="p-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">{offer.title}</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold text-gray-900">{offer.title}</h3>
+          <span className="text-sm text-blue-600 font-medium">{offer.shopName}</span>
+        </div>
         <p className="text-gray-600 text-sm mb-3">{offer.description}</p>
         
-        <div className="flex items-center space-x-2 text-gray-600 text-sm mb-3">
+        <div className="flex items-center space-x-2 text-gray-600 text-sm">
           <Calendar className="h-4 w-4" />
           <span>{startDate} - {endDate}</span>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-blue-600 font-medium">{offer.shopName}</span>
-          <button className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200">
-            View Offer
-          </button>
         </div>
       </div>
     </div>

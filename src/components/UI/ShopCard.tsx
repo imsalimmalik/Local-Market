@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Phone, MapPin, Star, CheckCircle } from 'lucide-react';
 import { Shop } from '../../types';
+import { createSlug } from '../../utils/slug';
 
 interface ShopCardProps {
   shop: Shop;
@@ -29,7 +30,9 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
           <h3 className="text-lg font-semibold text-gray-900">{shop.name}</h3>
           <div className="flex items-center space-x-1">
             <Star className="h-4 w-4 fill-current text-yellow-400" />
-            <span className="text-sm text-gray-600">{shop.rating}</span>
+            <span className="text-sm text-gray-600">
+              {shop.rating > 0 ? shop.rating.toFixed(1) : 'No ratings'}
+            </span>
           </div>
         </div>
         
@@ -49,7 +52,7 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop }) => {
             {shop.category}
           </span>
           <Link
-            to={`/shop/${shop.id}`}
+            to={`/shop/${createSlug(shop.name)}`}
             state={{ shop }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
           >

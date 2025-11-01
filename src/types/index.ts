@@ -19,7 +19,7 @@ export interface Product {
   shopId: string;
   name: string;
   price: number;
-  image: string;
+  image?: string;
   description: string;
 }
 
@@ -60,6 +60,7 @@ export interface ProductFormData {
 }
 
 export interface OfferFormData {
+  shopId: string;
   title: string;
   description: string;
   startDate: string;

@@ -14,34 +14,57 @@ const ShopsPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
 
+  const loadShops = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('http://localhost:5000/api/shops');
+      if (!res.ok) throw new Error('Failed to load shops');
+      const data = await res.json();
+      const mapped: Shop[] = (data || []).map((s: any) => ({
+        id: s._id || s.id,
+        name: s.name,
+        address: s.address,
+        phone: s.phone,
+        category: s.category || 'General',
+        rating: s.rating || 0,
+        verified: false,
+        image: s.logoUrl ? `http://localhost:5000${s.logoUrl}` : 'https://placehold.co/600x400?text=Shop',
+        description: s.description || '',
+        coordinates: { lat: 0, lng: 0 },
+      }));
+      setShops(mapped);
+    } catch (e: any) {
+      setError(e.message || 'Error loading shops');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const res = await fetch('http://localhost:5000/api/shops');
-        if (!res.ok) throw new Error('Failed to load shops');
-        const data = await res.json();
-        const mapped: Shop[] = (data || []).map((s: any) => ({
-          id: s._id || s.id,
-          name: s.name,
-          address: s.address,
-          phone: s.phone,
-          category: s.category || 'General',
-          rating: 4.5,
-          verified: false,
-          image: s.logoUrl ? `http://localhost:5000${s.logoUrl}` : 'https://placehold.co/600x400?text=Shop',
-          description: s.description || '',
-          coordinates: { lat: 0, lng: 0 },
-        }));
-        setShops(mapped);
-      } catch (e: any) {
-        setError(e.message || 'Error loading shops');
-      } finally {
-        setLoading(false);
+    loadShops();
+  }, []);
+
+  // Reload shops when window regains focus (user comes back from another tab/window or shop detail page)
+  useEffect(() => {
+    const handleFocus = () => {
+      loadShops();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+  
+  // Reload when component is visible (user navigates back to this page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadShops();
       }
     };
-    load();
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   const filteredShops = shops.filter((shop: Shop) => {

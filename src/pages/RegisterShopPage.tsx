@@ -49,7 +49,12 @@ const RegisterShopPage: React.FC = () => {
 
       const data = await response.json();
       console.log("✅ Shop registered successfully:", data);
-      alert("Shop registered successfully!");
+      
+      const productMsg = data.productsSaved > 0 
+        ? `Shop registered successfully! ${data.productsSaved} product(s) saved.`
+        : "Shop registered successfully! (No products were saved - make sure to add products before submitting)";
+      
+      alert(productMsg);
 
       // Reset form after successful submission
       setShopData({
@@ -238,7 +243,7 @@ const RegisterShopPage: React.FC = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Price ($)
+                      Price (₹)
                     </label>
                     <input
                       type="number"
@@ -287,7 +292,7 @@ const RegisterShopPage: React.FC = () => {
                         <div className="flex-1">
                           <div className="flex items-center space-x-4">
                             <span className="font-medium">{product.name}</span>
-                            <span className="text-green-600 font-semibold">${product.price.toFixed(2)}</span>
+                            <span className="text-green-600 font-semibold">₹{product.price.toFixed(2)}</span>
                           </div>
                           {product.description && (
                             <p className="text-sm text-gray-600 mt-1">{product.description}</p>
