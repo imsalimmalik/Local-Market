@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, MapPin, Shield, Star } from 'lucide-react';
+import { ArrowRight, MapPin, Star } from 'lucide-react';
 import SearchBar from '../components/Forms/SearchBar';
 import ShopCard from '../components/UI/ShopCard';
 import OfferCard from '../components/UI/OfferCard';
@@ -101,10 +101,10 @@ const HomePage: React.FC = () => {
                 <MapPin className="h-5 w-5" />
                 <span>Local Discovery</span>
               </div>
-              <div className="flex items-center space-x-2">
+              {/* <div className="flex items-center space-x-2">
                 <Shield className="h-5 w-5" />
                 <span>Verified Shops</span>
-              </div>
+              </div> */}
               <div className="flex items-center space-x-2">
                 <Star className="h-5 w-5" />
                 <span>Real Reviews</span>

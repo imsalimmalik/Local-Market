@@ -150,7 +150,7 @@ export const mockOffers: Offer[] = [
 ];
 
 export const categories = [
-  'All Categories',
+  'All',
   'Grocery',
   'Electronics',
   'Clothing',
