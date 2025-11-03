@@ -10,8 +10,11 @@ const RegisterShopPage: React.FC = () => {
     phone: '',
     email: '',
     category: '',
-    description: ''
+    description: '',
+    password: ''
   });
+
+  // No complex password pattern; only minimum length enforced on the input
 
   const [products, setProducts] = useState<ProductFormData[]>([]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -26,12 +29,23 @@ const RegisterShopPage: React.FC = () => {
     e.preventDefault();
 
     try {
+      // quick client-side validation mirrors backend required fields
+      const nameTrim = shopData.name.trim();
+      const addressTrim = shopData.address.trim();
+      const phoneTrim = shopData.phone.trim();
+      const emailTrim = shopData.email.trim();
+      const passwordTrim = (shopData.password || '').trim();
+      if (!nameTrim || !addressTrim || !phoneTrim || !emailTrim || !passwordTrim) {
+        alert('Please fill name, address, phone, email and password.');
+        return;
+      }
+
       const formData = new FormData();
-      formData.append('name', shopData.name);
-      formData.append('owner', 'Salim');
-      formData.append('address', shopData.address);
-      formData.append('phone', shopData.phone);
-      formData.append('email', shopData.email);
+      formData.append('name', nameTrim);
+      formData.append('address', addressTrim);
+      formData.append('phone', phoneTrim);
+      formData.append('email', emailTrim);
+      if (passwordTrim) formData.append('password', passwordTrim);
       formData.append('category', shopData.category);
       formData.append('description', shopData.description);
       formData.append('products', JSON.stringify(products));
@@ -43,8 +57,14 @@ const RegisterShopPage: React.FC = () => {
       });
 
       if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.message || "Failed to register shop");
+        let message = 'Failed to register shop';
+        try {
+          const err = await response.json();
+          message = err.message || message;
+        } catch (_) {
+          try { message = await response.text(); } catch { /* ignore */ }
+        }
+        throw new Error(message);
       }
 
       const data = await response.json();
@@ -63,13 +83,14 @@ const RegisterShopPage: React.FC = () => {
         phone: '',
         email: '',
         category: '',
-        description: ''
+        description: '',
+        password: ''
       });
       setProducts([]);
       setLogoFile(null);
     } catch (error: any) {
       console.error("❌ Error registering shop:", error.message);
-      alert("Error registering shop. Please check the console for details.");
+      alert(error.message || "Error registering shop. Please try again.");
     }
   };
 
@@ -157,6 +178,22 @@ const RegisterShopPage: React.FC = () => {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="example@shop.com"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={shopData.password || ''}
+                    onChange={(e) => setShopData(prev => ({ ...prev, password: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Create a strong password"
+                    autoComplete="new-password"
+                  />
+                  {/* Helper text removed as per request */}
                 </div>
 
                 <div>
@@ -314,12 +351,12 @@ const RegisterShopPage: React.FC = () => {
 
             {/* Submit Button */}
             <div className="flex justify-end space-x-4">
-              <button
+              {/* <button
                 type="button"
                 className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 font-medium transition-colors duration-200"
               >
                 Save Draft
-              </button>
+              </button> */}
               <button
                 type="submit"
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors duration-200"

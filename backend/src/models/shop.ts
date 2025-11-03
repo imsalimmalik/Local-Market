@@ -8,7 +8,6 @@ export interface IProduct {
 
 export interface IShop extends Document {
   name: string;
-  owner: string;
   address: string;
   phone: string;
   email: string;
@@ -16,6 +15,7 @@ export interface IShop extends Document {
   description?: string;
   logoUrl?: string;
   rating?: number;
+  password?: string;
   products: IProduct[];
   createdAt: Date;
 }
@@ -28,7 +28,6 @@ const ProductSchema: Schema = new Schema({
 
 const ShopSchema: Schema = new Schema({
   name: { type: String, required: true },
-  owner: { type: String, required: true },
   address: { type: String, required: true },
   phone: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -36,6 +35,7 @@ const ShopSchema: Schema = new Schema({
   description: { type: String },
   logoUrl: { type: String },
   rating: { type: Number, default: 0 },
+  password: { type: String },
   products: { type: [ProductSchema], default: [] },
   createdAt: { type: Date, default: Date.now },
 });

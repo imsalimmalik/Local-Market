@@ -29,11 +29,21 @@ const upload = multer({ storage });
 // POST /api/shops/register
 router.post("/register", upload.single("logo"), async (req, res) => {
   try {
-    const { name, owner, address, phone, email, category, description, products } = req.body as any;
+    const { name, address, phone, email, category, description, products, password } = req.body as any;
 
-    if (!name || !owner || !address || !phone || !email) {
-      return res.status(400).json({ message: "All fields are required" });
+    const requiredFields = { name, address, phone, email } as Record<string, any>;
+    const missing = Object.entries(requiredFields)
+      .filter(([_, v]) => v === undefined || String(v).trim().length === 0)
+      .map(([k]) => k);
+    if (missing.length > 0) {
+      return res.status(400).json({ message: `Missing fields: ${missing.join(', ')}` });
     }
+
+    if (!password) {
+      return res.status(400).json({ message: "Password is required" });
+    }
+    // Store password as plain text as requested (not recommended for production)
+    const passwordStored = String(password);
 
     const existingShop = await Shop.findOne({ email });
     if (existingShop) {
@@ -67,13 +77,13 @@ router.post("/register", upload.single("logo"), async (req, res) => {
 
     const newShop = new Shop({
       name,
-      owner,
       address,
       phone,
       email,
       category,
       description,
       logoUrl,
+      password: passwordStored,
       products: [], // Keep empty array in shop, products stored separately
     });
     await newShop.save();
@@ -142,6 +152,101 @@ router.post("/register", upload.single("logo"), async (req, res) => {
   }
 });
 
+// Helper to fetch shop by id or slug
+async function findShopByIdentifier(identifier: string) {
+  let shop = null as any;
+  if (mongoose.Types.ObjectId.isValid(identifier)) {
+    shop = await Shop.findById(identifier);
+  }
+  if (!shop) {
+    const shops = await Shop.find();
+    shop = shops.find((s: any) => createSlug(s.name) === identifier);
+  }
+  return shop;
+}
+
+// POST /api/shops/:identifier/verify - verify password
+router.post("/:identifier/verify", async (req, res) => {
+  try {
+    const { identifier } = req.params as { identifier: string };
+    const { password } = req.body as { password: string };
+    if (!password) return res.status(400).json({ message: "Password required" });
+    const shop: any = await findShopByIdentifier(identifier);
+    if (!shop || !shop.password) return res.status(404).json({ message: "Shop not found" });
+    const ok = String(shop.password) === String(password);
+    return res.json({ ok });
+  } catch (err: any) {
+    return res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// POST /api/shops/:identifier/products - add product (password required)
+router.post("/:identifier/products", async (req, res) => {
+  try {
+    const { identifier } = req.params as { identifier: string };
+    const { password, name, price, description } = req.body as any;
+    if (!password) return res.status(400).json({ message: 'Password required' });
+    if (!name || price === undefined) return res.status(400).json({ message: 'Name and price required' });
+    const shop: any = await findShopByIdentifier(identifier);
+    if (!shop) return res.status(404).json({ message: 'Shop not found' });
+    // verify password (plain text)
+    if (String(shop.password) !== String(password)) return res.status(401).json({ message: 'Invalid password' });
+
+    const newProduct = new Product({
+      shopId: shop._id as mongoose.Types.ObjectId,
+      name: String(name).trim(),
+      price: parseFloat(price),
+      description: String(description || '').trim(),
+    });
+    const saved = await newProduct.save();
+    return res.status(201).json(saved);
+  } catch (err: any) {
+    return res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// PUT /api/shops/:identifier/products/:productId - update product (password required)
+router.put("/:identifier/products/:productId", async (req, res) => {
+  try {
+    const { identifier, productId } = req.params as any;
+    const { password, name, price, description } = req.body as any;
+    if (!password) return res.status(400).json({ message: 'Password required' });
+    const shop: any = await findShopByIdentifier(identifier);
+    if (!shop) return res.status(404).json({ message: 'Shop not found' });
+    if (String(shop.password) !== String(password)) return res.status(401).json({ message: 'Invalid password' });
+
+    const update: any = {};
+    if (name !== undefined) update.name = String(name).trim();
+    if (price !== undefined) update.price = parseFloat(price);
+    if (description !== undefined) update.description = String(description).trim();
+    const updated = await Product.findOneAndUpdate({ _id: productId, shopId: shop._id }, update, { new: true });
+    if (!updated) return res.status(404).json({ message: 'Product not found' });
+    return res.json(updated);
+  } catch (err: any) {
+    return res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// DELETE /api/shops/:identifier/products/:productId - delete product (password required)
+router.delete("/:identifier/products/:productId", async (req, res) => {
+  try {
+    const { identifier, productId } = req.params as any;
+    const { password } = req.body as any;
+    if (!password) return res.status(400).json({ message: 'Password required' });
+    const shop: any = await findShopByIdentifier(identifier);
+    if (!shop) return res.status(404).json({ message: 'Shop not found' });
+    const [salt, hash] = String(shop.password || '').split(":");
+    const crypto = await import('crypto');
+    const derived = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+    if (derived !== hash) return res.status(401).json({ message: 'Invalid password' });
+
+    const deleted = await Product.findOneAndDelete({ _id: productId, shopId: shop._id });
+    if (!deleted) return res.status(404).json({ message: 'Product not found' });
+    return res.json({ ok: true });
+  } catch (err: any) {
+    return res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
 // GET /api/shops - list recent shops (for quick verification)
 router.get("/", async (_req, res) => {
   try {

@@ -51,6 +51,7 @@ export interface ShopFormData {
   email: string;
   category: string;
   description: string;
+  password?: string;
 }
 
 export interface ProductFormData {
